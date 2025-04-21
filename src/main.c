@@ -19,7 +19,7 @@ void SysTick_initialize(void)
     SysTick->CTRL = 0;  //Enables the SysTick timer
     // Reload value can be anything in the range 0x00000001-0x00FFFFFF. Setting
     // it to 4000 gives us a frequency of 1kHz.
-    SysTick->LOAD = 39; // Sets the SysTick timer's reload value
+    SysTick->LOAD = 39;
 
     //3999 - 1000 us
     //399  - 100  us  
@@ -51,6 +51,7 @@ int main()
     // Trig - A1
     gpio_config_mode(Echo, INPUT);
     gpio_config_mode(Trig, OUTPUT);
+    gpio_config_mode(A3, OUTPUT);
     volatile echo_signal;
     // Do Stuff
     while(1) {
@@ -62,19 +63,26 @@ int main()
         while (gpio_read(Echo) == 0);
         //Read from echo
         volatile int start_time = counter;
-        volatile int useless_int = 0;
         while (gpio_read(Echo) != 0);
         volatile int end_time = counter;
 
-        volatile int pulse_time = end_time - start_time;
-        volatile float distance = (pulse_time * 0.034) / 2;
-        
-        sprintf(buffer, "Useless int: %d\n", useless_int);
-        serial_write(USART2, buffer, strlen(buffer));
-        sprintf(buffer, "Distance: %d\n", pulse_time);
-        serial_write(USART2, buffer, strlen(buffer));
+        //Time elapsed in 10 us
+        volatile float pulse_time = (end_time - start_time);
 
+        //Distance = speed * time adjusted
+        volatile float distance = (pulse_time * 0.343) / 2;
+        
+        // sprintf(buffer, "Useless int: %d\n", useless_int);
+        // serial_write(USART2, buffer, strlen(buffer));
+        sprintf(buffer, "Distance: %f\n", distance);
+        serial_write(USART2, buffer, strlen(buffer));
+        
         delay(10000);
+        if(distance < 10.0f) {
+            gpio_write(A3, 1);            
+        } else {
+            gpio_write(A3, 0);
+        }
     }
 }
 
