@@ -42,7 +42,7 @@ int main()
     while(1) {
         //Send out 10 microsecond signal
         gpio_write(Trig, 1);
-        delay(1);
+        delay_ms(1);
         gpio_write(Trig, 0);
 
         while (gpio_read(Echo) == 0);
@@ -59,7 +59,7 @@ int main()
         sprintf(buffer, "Distance: %f\n", distance);
         serial_write(USART2, buffer, strlen(buffer));
         
-        delay(10000);
+        delay_ms(10000);
         if(distance < 10.0f) {
             gpio_write(A3, 1);            
         } else {
@@ -94,7 +94,7 @@ void SysTick_initialize(void)
     SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
 }
 
-void delay(int ds) {
+void delay_ms(int ds) {
     counter = 0;
     while (counter != ds) {}
 }
