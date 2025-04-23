@@ -105,9 +105,4 @@ int _write(int file, char *data, int len) {
     return len;
 }
 
-//Overloads printf so it can be used normally.
-int _write(int file, char *data, int len) {
-    serial_write(USART2, data, len);
-    return len;
-}
 // https://howtomechatronics.com/tutorials/arduino/ultrasonic-sensor-hc-sr04/
