@@ -71,9 +71,6 @@ int main()
 
         //Distance = speed * time adjusted
         volatile float distance = (pulse_time * 0.343) / 2;
-        
-        // sprintf(buffer, "Useless int: %d\n", useless_int);
-        // serial_write(USART2, buffer, strlen(buffer));
         sprintf(buffer, "Distance: %f\n", distance);
         serial_write(USART2, buffer, strlen(buffer));
         
@@ -85,5 +82,3 @@ int main()
         }
     }
 }
-
-// https://howtomechatronics.com/tutorials/arduino/ultrasonic-sensor-hc-sr04/
