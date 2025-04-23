@@ -1,6 +1,8 @@
 #include <stm32l432xx.h>
 #include "ee14lib.h"
+
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 
 
@@ -22,51 +24,96 @@ void delay_ms(int delay);
 volatile unsigned int counter;
 
 
+void uart2_init(void) {
+    // Enable GPIOA and USART2 clocks
+    RCC->AHB2ENR  |= RCC_AHB2ENR_GPIOAEN;
+    RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;
 
 
-int main()
-{
+}
+
+
+
+void usart_send_command(uint8_t cmd, uint16_t argument) {
+    
+    if(cmd == 3) {
+        const char write_buffer[10] = {0x7e, 0xff, 0x06, 0x0a, 0x00, 0x00, 0x00, 0xfe, 0xee, 0xef};
+        serial_write(USART1, write_buffer, 10);
+    }
+    
+}
+
+int main() {
+
+
     //Initalize Serial Communication and SysTick
     host_serial_init();
     SysTick_initialize();
-    char buffer[200];
+    // char buffer[200];
 
     /* Trig & Echo Config */
-    gpio_config_mode(Echo, INPUT);
-    gpio_config_mode(Trig, OUTPUT);
+    // gpio_config_mode(Echo, INPUT);
+    // gpio_config_mode(Trig, OUTPUT);
 
+    
 
     gpio_config_mode(A3, OUTPUT);
-    volatile echo_signal;
-
-    while(1) {
-        //Send out 10 microsecond signal
-        gpio_write(Trig, 1);
-        delay_ms(1);
-        gpio_write(Trig, 0);
-
-        while (gpio_read(Echo) == 0);
-        //Read from echo
-        volatile int start_time = counter;
-        while (gpio_read(Echo) != 0);
-        volatile int end_time = counter;
-
-        //Time elapsed in 10 us
-        volatile float pulse_time = (end_time - start_time);
-
-        //Distance = speed * time adjusted
-        volatile float distance = (pulse_time * 0.343) / 2;
-        sprintf(buffer, "Distance: %f\n", distance);
-        serial_write(USART2, buffer, strlen(buffer));
+    while (1)
+    {
+        // sprintf(buffer, "meow  \n");
+        // serial_write(USART2, buffer, strlen(buffer));
+        // delay_ms(100000);
         
-        delay_ms(10000);
-        if(distance < 10.0f) {
-            gpio_write(A3, 1);            
-        } else {
-            gpio_write(A3, 0);
-        }
+        delay_ms(100000);
+        usart_send_command(3, 0);
     }
+    
 }
+
+// leave this for later
+// int main()
+// {
+//     //Initalize Serial Communication and SysTick
+//     host_serial_init();
+//     SysTick_initialize();
+//     char buffer[200];
+
+//     /* Trig & Echo Config */
+//     gpio_config_mode(Echo, INPUT);
+//     gpio_config_mode(Trig, OUTPUT);
+
+
+//     gpio_config_mode(A3, OUTPUT);
+
+
+//     while(1) {
+//         //Send out 10 microsecond signal
+//         gpio_write(Trig, 1);
+//         delay_ms(1);
+//         gpio_write(Trig, 0);
+
+//         while (gpio_read(Echo) == 0);
+//         //Read from echo
+//         volatile int start_time = counter;
+//         while (gpio_read(Echo) != 0);
+//         volatile int end_time = counter;
+
+//         //Time elapsed in 10 us
+//         volatile float pulse_time = (end_time - start_time);
+
+//         //Distance = speed * time adjusted
+//         volatile float distance = (pulse_time * 0.343) / 2;
+//         sprintf(buffer, "Distance: %f\n", distance);
+//         serial_write(USART2, buffer, strlen(buffer));
+        
+//         delay_ms(10000);
+//         if(distance < 10.0f) {
+//             gpio_write(A3, 1);            
+//         } else {
+//             gpio_write(A3, 0);
+//         }
+//     }
+// }
 
 
 void SysTick_Handler(void)

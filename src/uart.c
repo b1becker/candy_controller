@@ -37,6 +37,16 @@ static void UART2_GPIO_Init(void) {
     GPIOA->OTYPER  &= ~((0x3<<(2*2)) | (0x3<<(2*15)));	// Clear bits
 }
 
+void UART1_GPIO_Init(void) {
+    set_gpio_alt_func(GPIOA, 6, 7);   // PA9 = USART1_TX (AF7)
+    set_gpio_alt_func(GPIOA, 7, 7);  // PA10 = USART1_RX (AF7)
+
+    GPIOA->OSPEEDR |= 0x3 << (2 * 9) | 0x3 << (2 * 10);  // High speed for PA9, PA10
+    GPIOA->PUPDR &= ~((0x3 << (2 * 9)) | (0x3 << (2 * 10)));
+    GPIOA->PUPDR |= (0x1 << (2 * 9)) | (0x1 << (2 * 10));  // Pull-up
+    GPIOA->OTYPER &= ~((0x1 << 9) | (0x1 << 10));  // Push-pull
+}
+
 
 // Set for 8 data bits, 1 start & 1 stop bit, 16x oversampling, 9600 baud.
 // And by default, we also get no parity, no hardware flow control (USART_CR3),
@@ -89,16 +99,16 @@ static void USART_Init (USART_TypeDef *USARTx, bool tx_en, bool rx_en,int baud){
 }
 
 
-// void UART_write_byte (USART_TypeDef *USARTx, char data) {
-//     // spin-wait until the TXE (TX empty) bit is set
-//     while (!(USARTx->ISR & USART_ISR_TXE));
+void UART_write_byte (USART_TypeDef *USARTx, char data) {
+    // spin-wait until the TXE (TX empty) bit is set
+    while (!(USARTx->ISR & USART_ISR_TXE));
 
-//     // Writing USART data register automatically clears the TXE flag 	
-//     USARTx->TDR = data & 0xFF;
+    // Writing USART data register automatically clears the TXE flag 	
+    USARTx->TDR = data & 0xFF;
 
-//     // Wait 300us or so, to let the HW clear TXE.
-//     USART_Delay (300);
-// }
+    // Wait 300us or so, to let the HW clear TXE.
+    USART_Delay (300);
+}
 
 // Assume that each usec of delay is about 13 times around the NOP loop.
 // That's probably about right at 80 MHz (maybe a bit too slow).
@@ -150,47 +160,53 @@ void set_gpio_alt_func (GPIO_TypeDef *gpio, unsigned int pin, unsigned int func)
 }
 
 
-// void host_serial_init() {
-//     int baud=9600;
+void host_serial_init() {
+    int baud=9600;
 
-//     // Enable USART 2 clock
-//     RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;  
+    // Enable USART 2 clock
+    RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;  
+    RCC->APB1ENR1 |= RCC_APB2ENR_USART1EN;
 
-//     // Select SYSCLK as the USART2 clock source. The reset default is PCLK1;
-//     // we usually set both SYSCLK and PCLK1 to 80MHz anyway.
-//     RCC->CCIPR &= ~RCC_CCIPR_USART2SEL;
-//     RCC->CCIPR |=  RCC_CCIPR_USART2SEL_0;
+    // Select SYSCLK as the USART2 clock source. The reset default is PCLK1;
+    // we usually set both SYSCLK and PCLK1 to 80MHz anyway.
+    RCC->CCIPR &= ~RCC_CCIPR_USART2SEL;
+    RCC->CCIPR |=  RCC_CCIPR_USART2SEL_0;
 
-//     // Connect the I/O pins to the serial peripheral
-//     UART2_GPIO_Init();
+    RCC->CCIPR &= ~RCC_CCIPR_USART1SEL;
+    RCC->CCIPR |=  RCC_CCIPR_USART1SEL_0;
+    // Connect the I/O pins to the serial peripheral
+    UART2_GPIO_Init();
+    UART1_GPIO_Init();
+    
 
-//     USART_Init (USART2, 1, 1, baud);	// Enable both Tx and Rx sides.
+    // USART_Init (USART2, 1, 1, baud);	// Enable both Tx and Rx sides.
+    USART_Init (USART1, 1, 1, baud);	// Enable both Tx and Rx sides.
 
-// }
+}
 
 // Very basic function: send a character string to the UART, one byte at a time.
 // Spin wait after each byte until the UART is ready for the next byte.
-// void serial_write (USART_TypeDef *USARTx, const char *buffer, int len) {
-//     // The main flag we use is Tx Empty (TXE). The HW sets it when the
-//     // transmit data register (TDR) is ready for more data. TXE is then
-//     // cleared when we write new data in (by a write to the USART_DR reg).
-//     // When the HW transfers the TDR into the shift register, it sets TXE=1.
-//     for (unsigned int i = 0; i < len; i++) {
-// 	    UART_write_byte (USARTx, buffer[i]);
-//     }
+void serial_write (USART_TypeDef *USARTx, const char *buffer, int len) {
+    // The main flag we use is Tx Empty (TXE). The HW sets it when the
+    // transmit data register (TDR) is ready for more data. TXE is then
+    // cleared when we write new data in (by a write to the USART_DR reg).
+    // When the HW transfers the TDR into the shift register, it sets TXE=1.
+    for (unsigned int i = 0; i < len; i++) {
+	    UART_write_byte (USARTx, buffer[i]);
+    }
 
-//     // RM0394 page 1203 says that you must wait for ISR.TC=1 before you shut
-//     // off the USART. We never shut off the USART... but we'll wait anyway.
-//     while (!(USARTx->ISR & USART_ISR_TC));
-//     USARTx->ISR &= ~USART_ISR_TC;
-// }
+    // RM0394 page 1203 says that you must wait for ISR.TC=1 before you shut
+    // off the USART. We never shut off the USART... but we'll wait anyway.
+    while (!(USARTx->ISR & USART_ISR_TC));
+    USARTx->ISR &= ~USART_ISR_TC;
+}
 
-// char serial_read (USART_TypeDef *USARTx) {
-//     // The SR_RXNE (Read data register not empty) bit is set by hardware.
-//     // We spin wait until that bit is set
-//     while (!(USARTx->ISR & USART_ISR_RXNE))
-// 	;
+char serial_read (USART_TypeDef *USARTx) {
+    // The SR_RXNE (Read data register not empty) bit is set by hardware.
+    // We spin wait until that bit is set
+    while (!(USARTx->ISR & USART_ISR_RXNE))
+	;
 
-//     // Reading USART_DR automatically clears the RXNE flag 
-//     return ((char)(USARTx->RDR & 0xFF));
-// }
+    // Reading USART_DR automatically clears the RXNE flag 
+    return ((char)(USARTx->RDR & 0xFF));
+}
