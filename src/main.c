@@ -97,7 +97,7 @@ void SysTick_initialize(void)
     SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
 }
 
-void delay(int ds) {
+void delay_ms(int ds) {
     counter = 0;
     while (counter != ds) {}
 }
