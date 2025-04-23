@@ -3,41 +3,26 @@
 #include <stdio.h>
 #include <string.h>
 
+
+
+/* Pin Definitions: */
 #define Echo A0
 #define Trig A1
+#define TX_UART D4
+#define RX_UART D5
+
+/* Functions Declarations: */
+void SysTick_Handler(void);
+void SysTick_initialize(void);
+void delay_ms(int delay);
+
+
+/* Global Variable Declarations: */
 
 volatile unsigned int counter;
 
 
-void SysTick_Handler(void)
-{
-    counter++;
-}
 
-void SysTick_initialize(void)
-{
-    SysTick->CTRL = 0;  //Enables the SysTick timer
-    // Reload value can be anything in the range 0x00000001-0x00FFFFFF. Setting
-    // it to 4000 gives us a frequency of 1kHz.
-    SysTick->LOAD = 39;
-
-    //3999 - 1000 us
-    //399  - 100  us  
-    //39   - 10   us  
-
-    // This sets the priority of the interrupt to 15 (2^4 - 1), which is the
-    // largest supported value (aka lowest priority)
-    NVIC_SetPriority (SysTick_IRQn, (1<<__NVIC_PRIO_BITS) - 1);
-    SysTick->VAL = 0;
-    SysTick->CTRL |= SysTick_CTRL_CLKSOURCE_Msk;
-    SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
-    SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
-}
-
-void delay(int ds) {
-    counter = 0;
-    while (counter != ds) {}
-}
 
 int main()
 {
@@ -46,14 +31,14 @@ int main()
     SysTick_initialize();
     char buffer[200];
 
-    //Configure the Trig & Echo
-    // Echo - A0
-    // Trig - A1
+    /* Trig & Echo Config */
     gpio_config_mode(Echo, INPUT);
     gpio_config_mode(Trig, OUTPUT);
+
+
     gpio_config_mode(A3, OUTPUT);
     volatile echo_signal;
-    // Do Stuff
+
     while(1) {
         //Send out 10 microsecond signal
         gpio_write(Trig, 1);
@@ -82,3 +67,5 @@ int main()
         }
     }
 }
+
+// https://howtomechatronics.com/tutorials/arduino/ultrasonic-sensor-hc-sr04/
