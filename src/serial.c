@@ -6,9 +6,9 @@
 #include "stm32l432xx.h"
 #include <stdbool.h>
 
-static void USART_Init (USART_TypeDef *USARTx, bool tx_en, bool rx_en,int baud);
-static void UART2_GPIO_Init(void);
-static void USART_Delay(uint32_t us);
+// static void USART_Init (USART_TypeDef *USARTx, bool tx_en, bool rx_en,int baud);
+// static void UART2_GPIO_Init(void);
+// static void USART_Delay(uint32_t us);
 
 static void set_gpio_alt_func (GPIO_TypeDef *gpio,unsigned int pin,unsigned int func);
 
@@ -18,75 +18,85 @@ static void set_gpio_alt_func (GPIO_TypeDef *gpio,unsigned int pin,unsigned int 
 // The alternate-function designation presumably sets most on the GPIO pin's
 // internals. However, we still set them here to high-speed, pullup-only,
 // push-pull drive.
-static void UART2_GPIO_Init(void) {
-    set_gpio_alt_func (GPIOA,  2, 7);
-    set_gpio_alt_func (GPIOA, 15, 3);
+// static void UART2_GPIO_Init(void) {
+//     set_gpio_alt_func (GPIOA,  2, 7);
+//     set_gpio_alt_func (GPIOA, 15, 3);
 
-    // Set PA2 and PA15 to very-high-speed. This changes the output slew rate.
-    GPIOA->OSPEEDR |=   0x3<<(2*2) | 0x3<<(2*15);
+//     // Set PA2 and PA15 to very-high-speed. This changes the output slew rate.
+//     GPIOA->OSPEEDR |=   0x3<<(2*2) | 0x3<<(2*15);
 
-    // Both PA2 and PA15 are in pullup/down mode 01, which means pull-up only.
-    // This is arguably not needed. During normal operation, we're doing push-
-    // pull drive and so don't need a pullup or pulldown. Some people like a
-    // pullup to stop the data line from bouncing during reset before any MCU
-    // drives it -- but our pullup won't turn on until this code runs, anyway!
-    GPIOA->PUPDR   &= ~((0x3<<(2*2)) | (0x3<<(2*15)));	// Clear bits
-    GPIOA->PUPDR   |=   (0x1<<(2*2)) | (0x1<<(2*15));	// Set each to 01.
+//     // Both PA2 and PA15 are in pullup/down mode 01, which means pull-up only.
+//     // This is arguably not needed. During normal operation, we're doing push-
+//     // pull drive and so don't need a pullup or pulldown. Some people like a
+//     // pullup to stop the data line from bouncing during reset before any MCU
+//     // drives it -- but our pullup won't turn on until this code runs, anyway!
+//     GPIOA->PUPDR   &= ~((0x3<<(2*2)) | (0x3<<(2*15)));	// Clear bits
+//     GPIOA->PUPDR   |=   (0x1<<(2*2)) | (0x1<<(2*15));	// Set each to 01.
 
-    // Both PA2 and PA15 are push-pull (which is the reset default, anyway).
-    GPIOA->OTYPER  &= ~((0x3<<(2*2)) | (0x3<<(2*15)));	// Clear bits
+//     // Both PA2 and PA15 are push-pull (which is the reset default, anyway).
+//     GPIOA->OTYPER  &= ~((0x3<<(2*2)) | (0x3<<(2*15)));	// Clear bits
+// }
+
+void UART1_GPIO_Init(void) {
+    set_gpio_alt_func(GPIOA, 6, 7);   // PA9 = USART1_TX (AF7)
+    set_gpio_alt_func(GPIOA, 7, 7);  // PA10 = USART1_RX (AF7)
+
+    GPIOA->OSPEEDR |= 0x3 << (2 * 9) | 0x3 << (2 * 10);  // High speed for PA9, PA10
+    GPIOA->PUPDR &= ~((0x3 << (2 * 9)) | (0x3 << (2 * 10)));
+    GPIOA->PUPDR |= (0x1 << (2 * 9)) | (0x1 << (2 * 10));  // Pull-up
+    GPIOA->OTYPER &= ~((0x1 << 9) | (0x1 << 10));  // Push-pull
 }
 
 
 // Set for 8 data bits, 1 start & 1 stop bit, 16x oversampling, 9600 baud.
 // And by default, we also get no parity, no hardware flow control (USART_CR3),
 // asynch mode (USART_CR2).
-static void USART_Init (USART_TypeDef *USARTx, bool tx_en, bool rx_en,int baud){
-    // Disable the USART.
-    USARTx->CR1 &= ~USART_CR1_UE;  // Disable USART
+// static void USART_Init (USART_TypeDef *USARTx, bool tx_en, bool rx_en,int baud){
+//     // Disable the USART.
+//     USARTx->CR1 &= ~USART_CR1_UE;  // Disable USART
 
-    // The "M" field is two bits, M1 and M0. We're setting it to 00 (which
-    // is the reset value anyway), to use 8-bit words and one start bit.
-    USARTx->CR1 &= ~USART_CR1_M;
+//     // The "M" field is two bits, M1 and M0. We're setting it to 00 (which
+//     // is the reset value anyway), to use 8-bit words and one start bit.
+//     USARTx->CR1 &= ~USART_CR1_M;
 
-    // Configure stop bits to 1 stop bit (which is the default). Other
-    // choices are .5, 1.5 and 2 stop bits.
-    USARTx->CR2 &= ~USART_CR2_STOP;   
+//     // Configure stop bits to 1 stop bit (which is the default). Other
+//     // choices are .5, 1.5 and 2 stop bits.
+//     USARTx->CR2 &= ~USART_CR2_STOP;   
 
-    // Set baudrate as desired. This is done by dividing down the APB1 clock.
-    // E.g., 80MHz/9600 = 8333 = 0x208D.
-    // (We're oversampling by 16; the calculation would be slightly
-    // different if we were 8x mode).
-    extern uint32_t SystemCoreClock;
-    uint32_t val = SystemCoreClock / baud;
-    USARTx->BRR  = val;
+//     // Set baudrate as desired. This is done by dividing down the APB1 clock.
+//     // E.g., 80MHz/9600 = 8333 = 0x208D.
+//     // (We're oversampling by 16; the calculation would be slightly
+//     // different if we were 8x mode).
+//     extern uint32_t SystemCoreClock;
+//     uint32_t val = SystemCoreClock / baud;
+//     USARTx->BRR  = val;
 
-    // Configure oversampling mode: Oversampling by 16 (which is the
-    // default). This means that our Rx runs at 16x the nominal baud rate.
-    // If we're not enabling the Rx anyway, this step is moot (but harmless).
-    USARTx->CR1 &= ~USART_CR1_OVER8;
+//     // Configure oversampling mode: Oversampling by 16 (which is the
+//     // default). This means that our Rx runs at 16x the nominal baud rate.
+//     // If we're not enabling the Rx anyway, this step is moot (but harmless).
+//     USARTx->CR1 &= ~USART_CR1_OVER8;
 
-    // Turn on transmitter and receiver enables. Note that the entire USART
-    // is still disabled, though. Turning on the Rx enable kicks off the Rx
-    // looking for a stop bit.
-    if (tx_en)
-	USARTx->CR1  |= USART_CR1_TE;
-    if (rx_en)
-	USARTx->CR1  |= USART_CR1_RE;
+//     // Turn on transmitter and receiver enables. Note that the entire USART
+//     // is still disabled, though. Turning on the Rx enable kicks off the Rx
+//     // looking for a stop bit.
+//     if (tx_en)
+// 	USARTx->CR1  |= USART_CR1_TE;
+//     if (rx_en)
+// 	USARTx->CR1  |= USART_CR1_RE;
 	
-    // We originally turned off the USART -- now turn it back on.
-    // Note that page 1202 says to turn this on *before* asserting TE and/or RE.
-    USARTx->CR1  |= USART_CR1_UE; // USART enable                 
+//     // We originally turned off the USART -- now turn it back on.
+//     // Note that page 1202 says to turn this on *before* asserting TE and/or RE.
+//     USARTx->CR1  |= USART_CR1_UE; // USART enable                 
 	
-    // Verify that the USART is ready to transmit...
-    if (tx_en)
-	while ( (USARTx->ISR & USART_ISR_TEACK) == 0)
-	    ;
-    // ... and to receive.
-    if (rx_en)
-	while ( (USARTx->ISR & USART_ISR_REACK) == 0)
-	    ;
-}
+//     // Verify that the USART is ready to transmit...
+//     if (tx_en)
+// 	while ( (USARTx->ISR & USART_ISR_TEACK) == 0)
+// 	    ;
+//     // ... and to receive.
+//     if (rx_en)
+// 	while ( (USARTx->ISR & USART_ISR_REACK) == 0)
+// 	    ;
+// }
 
 
 // void UART_write_byte (USART_TypeDef *USARTx, char data) {
@@ -102,10 +112,10 @@ static void USART_Init (USART_TypeDef *USARTx, bool tx_en, bool rx_en,int baud){
 
 // Assume that each usec of delay is about 13 times around the NOP loop.
 // That's probably about right at 80 MHz (maybe a bit too slow).
-void USART_Delay(uint32_t us) {
-    uint32_t time = 100*us/7;    
-    while(--time);   
-}
+// void USART_Delay(uint32_t us) {
+//     uint32_t time = 100*us/7;    
+//     while(--time);   
+// }
 
 
 // Turn on the clock for a GPIO port.
@@ -155,16 +165,22 @@ void set_gpio_alt_func (GPIO_TypeDef *gpio, unsigned int pin, unsigned int func)
 
 //     // Enable USART 2 clock
 //     RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;  
+//     RCC->APB1ENR1 |= RCC_APB2ENR_USART1EN;
 
 //     // Select SYSCLK as the USART2 clock source. The reset default is PCLK1;
 //     // we usually set both SYSCLK and PCLK1 to 80MHz anyway.
 //     RCC->CCIPR &= ~RCC_CCIPR_USART2SEL;
 //     RCC->CCIPR |=  RCC_CCIPR_USART2SEL_0;
 
+//     RCC->CCIPR &= ~RCC_CCIPR_USART1SEL;
+//     RCC->CCIPR |=  RCC_CCIPR_USART1SEL_0;
 //     // Connect the I/O pins to the serial peripheral
 //     UART2_GPIO_Init();
+//     UART1_GPIO_Init();
+    
 
-//     USART_Init (USART2, 1, 1, baud);	// Enable both Tx and Rx sides.
+//     // USART_Init (USART2, 1, 1, baud);	// Enable both Tx and Rx sides.
+//     USART_Init (USART1, 1, 1, baud);	// Enable both Tx and Rx sides.
 
 // }
 

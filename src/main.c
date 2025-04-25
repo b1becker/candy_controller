@@ -10,8 +10,8 @@
 /* Pin Definitions: */
 #define Echo A0
 #define Trig A1
-#define TX_UART D4
-#define RX_UART D5
+// #define TX_UART D1
+// #define RX_UART D0 currently hard coded will use later
 
 /* Functions Declarations: */
 void SysTick_Handler(void);
@@ -21,24 +21,39 @@ void delay_ms(int delay);
 
 /* Global Variable Declarations: */
 
-volatile unsigned int counter;
 
 
-void uart2_init(void) {
-    // Enable GPIOA and USART2 clocks
-    RCC->AHB2ENR  |= RCC_AHB2ENR_GPIOAEN;
-    RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;
+
+// void uart2_init(void) {
+//     // Enable GPIOA and USART2 clocks
+//     RCC->AHB2ENR  |= RCC_AHB2ENR_GPIOAEN;
+//     RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;
 
 
+// }
+void usart_select_sd(void) {
+    const uint8_t buf[10] = {
+        0x7E,       // Start
+        0xFF,       // Version
+        0x06,       // Length
+        0x09,       // CMD = select device
+        0x00,       // No feedback
+        0x00, 0x02, // Param = 0x0002 (SD card)
+        0xFE, 0xF0, // Checksum (0xFEF0)
+        0xEF        // End
+    };
+    serial_write(USART1, (char*)buf, 10);
 }
-
-
 
 void usart_send_command(uint8_t cmd, uint16_t argument) {
     
     if(cmd == 3) {
-        const char write_buffer[10] = {0x7e, 0xff, 0x06, 0x0a, 0x00, 0x00, 0x00, 0xfe, 0xee, 0xef};
-        serial_write(USART1, write_buffer, 10);
+        const uint8_t write_buffer[10] = {
+            0x7E, 0xFF, 0x06, 0x03,
+            0x00, 0x00, 0x01,
+            0xFE, 0xF7, 0xEF
+        };
+        serial_write(USART1, (char*)write_buffer, 10);
     }
     
 }
@@ -49,8 +64,11 @@ int main() {
     //Initalize Serial Communication and SysTick
     host_serial_init();
     SysTick_initialize();
-    // char buffer[200];
-
+    char buffer[200];
+    delay_ms(100000);
+    usart_select_sd();
+    delay_ms(100000);
+    usart_send_command(3, 0);
     /* Trig & Echo Config */
     // gpio_config_mode(Echo, INPUT);
     // gpio_config_mode(Trig, OUTPUT);
@@ -60,12 +78,12 @@ int main() {
     gpio_config_mode(A3, OUTPUT);
     while (1)
     {
-        // sprintf(buffer, "meow  \n");
-        // serial_write(USART2, buffer, strlen(buffer));
+        sprintf(buffer, "meow  \n");
+        serial_write(USART2, buffer, strlen(buffer));
         // delay_ms(100000);
         
         delay_ms(100000);
-        usart_send_command(3, 0);
+        // usart_send_command(3, 0);
     }
     
 }
@@ -115,7 +133,7 @@ int main() {
 //     }
 // }
 
-
+volatile unsigned int counter;
 void SysTick_Handler(void)
 {
     counter++;

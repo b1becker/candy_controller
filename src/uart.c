@@ -12,6 +12,8 @@ static void USART_Delay(uint32_t us);
 
 static void set_gpio_alt_func (GPIO_TypeDef *gpio,unsigned int pin,unsigned int func);
 
+static void UART1_GPIO_Init(void);
+static void gpio_enable_port (GPIO_TypeDef *gpio);
 // The Nucleo 432 wires PA2 to the ST-Link's VCP_TX pin via AF7, and PA15 to
 // VCP_RX via AF3.
 // In this function, we set up those pins.
@@ -37,15 +39,6 @@ static void UART2_GPIO_Init(void) {
     GPIOA->OTYPER  &= ~((0x3<<(2*2)) | (0x3<<(2*15)));	// Clear bits
 }
 
-void UART1_GPIO_Init(void) {
-    set_gpio_alt_func(GPIOA, 6, 7);   // PA9 = USART1_TX (AF7)
-    set_gpio_alt_func(GPIOA, 7, 7);  // PA10 = USART1_RX (AF7)
-
-    GPIOA->OSPEEDR |= 0x3 << (2 * 9) | 0x3 << (2 * 10);  // High speed for PA9, PA10
-    GPIOA->PUPDR &= ~((0x3 << (2 * 9)) | (0x3 << (2 * 10)));
-    GPIOA->PUPDR |= (0x1 << (2 * 9)) | (0x1 << (2 * 10));  // Pull-up
-    GPIOA->OTYPER &= ~((0x1 << 9) | (0x1 << 10));  // Push-pull
-}
 
 
 // Set for 8 data bits, 1 start & 1 stop bit, 16x oversampling, 9600 baud.
@@ -128,6 +121,18 @@ static void gpio_enable_port (GPIO_TypeDef *gpio) {
     RCC->AHB2ENR |= field;			// Turn on the GPIO clock
 }
 
+
+static void UART1_GPIO_Init(void) {
+    // correct pin configuration
+    gpio_enable_port(GPIOA);
+    
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+    // PA9 -> USART1_TX, PA10 -> USART1_RX both AF7
+    set_gpio_alt_func(GPIOA, 9, 7); // tx
+    set_gpio_alt_func(GPIOA, 10, 7); // rx
+    // init pin tx as baud rate
+    USART_Init(USART1, true, true, 9600);
+}
 // Set a given GPIO pin to be a particular alternate-function.
 // Params:
 //	gpio: which port; one of GPIOA, GPIOB, ... GPIOH.
@@ -165,22 +170,21 @@ void host_serial_init() {
 
     // Enable USART 2 clock
     RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;  
-    RCC->APB1ENR1 |= RCC_APB2ENR_USART1EN;
+
+    // enable gpioa clock 
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
 
     // Select SYSCLK as the USART2 clock source. The reset default is PCLK1;
     // we usually set both SYSCLK and PCLK1 to 80MHz anyway.
     RCC->CCIPR &= ~RCC_CCIPR_USART2SEL;
     RCC->CCIPR |=  RCC_CCIPR_USART2SEL_0;
 
-    RCC->CCIPR &= ~RCC_CCIPR_USART1SEL;
-    RCC->CCIPR |=  RCC_CCIPR_USART1SEL_0;
     // Connect the I/O pins to the serial peripheral
     UART2_GPIO_Init();
-    UART1_GPIO_Init();
-    
 
-    // USART_Init (USART2, 1, 1, baud);	// Enable both Tx and Rx sides.
-    USART_Init (USART1, 1, 1, baud);	// Enable both Tx and Rx sides.
+    USART_Init (USART2, 1, 1, baud);	// Enable both Tx and Rx sides.
+
+    UART1_GPIO_Init();
 
 }
 
