@@ -26,56 +26,60 @@ void usart_select_sd(void);
 
 
 /* Global Variable Declarations: */
+char buffer[200];
+volatile unsigned int counter;
 
 /* Main */
 int main() {
     //Initalize Serial Communication and SysTick
+    host_uart_init();
     host_serial_init();
+
     SysTick_initialize();
-    // char buffer[200];
-    
+
     usart_select_sd();
     delay_us(100000);
     
-    /* Trig & Echo Config */
-    gpio_config_mode(Echo, INPUT);
-    gpio_config_mode(Trig, OUTPUT);
+    // /* Trig & Echo Config */
+    // gpio_config_mode(Echo, INPUT);
+    // gpio_config_mode(Trig, OUTPUT);
     
     usart_send_command(DEFAULT);
     while (1)
     {
         // serial_write(USART2, buffer, strlen(buffer));
-        delay_us(1000000);
-        usart_send_command(PLAY_NEXT);
+        // delay_us(1000000);
+        // usart_send_command(PLAY_NEXT);
         // delay_us(100000);
         // usart_send_command(PLAY_NEXT);
-            // usart_send_command(3, 0);
 
-//         //Send out 10 microsecond signal
-//         gpio_write(Trig, 1);
-//         delay_us(1);
-//         gpio_write(Trig, 0);
+        // // Send out 10 microsecond signal
+        // gpio_write(Trig, 1);
+        // delay_us(1);
+        // gpio_write(Trig, 0);
 
-//         while (gpio_read(Echo) == 0);
-//         //Read from echo
-//         volatile int start_time = counter;
-//         while (gpio_read(Echo) != 0);
-//         volatile int end_time = counter;
+        // while (gpio_read(Echo) == 0);
+        // //Read from echo
+        // volatile int start_time = counter;
+        // while (gpio_read(Echo) != 0);
+        // volatile int end_time = counter;
 
-//         //Time elapsed in 10 us
-//         volatile float pulse_time = (end_time - start_time);
+        // //Time elapsed in 10 us
+        // volatile float pulse_time = (end_time - start_time);
 
-//         //Distance = speed * time adjusted
-//         volatile float distance = (pulse_time * 0.343) / 2;
-//         sprintf(buffer, "Distance: %f\n", distance);
-//         serial_write(USART2, buffer, strlen(buffer));
+        // //Distance = speed * time adjusted
+        // volatile float distance = (pulse_time * 0.343) / 2;
+        // sprintf(buffer, "Distance: %f\n", distance);
+        // serial_write(USART2, buffer, strlen(buffer));
+        sprintf(buffer, "meow\n");
+        serial_write(USART2, buffer, strlen(buffer));
+
         
-//         delay_us(10000);
+        delay_us(10000);
 
     }
 }
 
-volatile unsigned int counter;
 void SysTick_Handler(void)
 {
     counter++;
@@ -104,12 +108,6 @@ void SysTick_initialize(void)
 void delay_us(int ds) {
     counter = 0;
     while (counter != ds) {}
-}
-
-//Overloads printf so it can be used normally.
-int _write(int file, char *data, int len) {
-    serial_write(USART2, data, len);
-    return len;
 }
 
 void usart_send_command(uint8_t cmd) {

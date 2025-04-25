@@ -14,6 +14,11 @@ static void set_gpio_alt_func (GPIO_TypeDef *gpio,unsigned int pin,unsigned int 
 
 static void UART1_GPIO_Init(void);
 static void gpio_enable_port (GPIO_TypeDef *gpio);
+
+void host_uart_init(void);
+
+
+static void USART_Delay(uint32_t us);
 // The Nucleo 432 wires PA2 to the ST-Link's VCP_TX pin via AF7, and PA15 to
 // VCP_RX via AF3.
 // In this function, we set up those pins.
@@ -165,7 +170,7 @@ void set_gpio_alt_func (GPIO_TypeDef *gpio, unsigned int pin, unsigned int func)
 }
 
 
-void host_serial_init() {
+void host_uart_init() {
     int baud=9600;
 
     // Enable USART 2 clock
@@ -214,3 +219,62 @@ char serial_read (USART_TypeDef *USARTx) {
     // Reading USART_DR automatically clears the RXNE flag 
     return ((char)(USARTx->RDR & 0xFF));
 }
+
+// The following is taken from serial.c in lab1. This code is intended for a functioning distance sensor
+
+
+
+
+// Assume that each usec of delay is about 13 times around the NOP loop.
+// That's probably about right at 80 MHz (maybe a bit too slow).
+// void USART_Delay(uint32_t us) {
+//     uint32_t time = 100*us/7;    
+//     while(--time);   
+// }
+
+
+// Turn on the clock for a GPIO port.
+// static void gpio_enable_port (GPIO_TypeDef *gpio) {
+//     unsigned long field;
+//     if (gpio==GPIOA)      field=RCC_AHB2ENR_GPIOAEN;
+//     else if (gpio==GPIOB) field=RCC_AHB2ENR_GPIOBEN;
+//     else if (gpio==GPIOC) field=RCC_AHB2ENR_GPIOCEN;
+//     else 		  field=RCC_AHB2ENR_GPIOHEN;
+//     RCC->AHB2ENR |= field;			// Turn on the GPIO clock
+// }
+
+
+void host_serial_init() {
+    int baud=9600;
+
+    // Enable USART 2 clock
+    RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;  
+
+    // Select SYSCLK as the USART2 clock source. The reset default is PCLK1;
+    // we usually set both SYSCLK and PCLK1 to 80MHz anyway.
+    RCC->CCIPR &= ~RCC_CCIPR_USART2SEL;
+    RCC->CCIPR |=  RCC_CCIPR_USART2SEL_0;
+
+    // Connect the I/O pins to the serial peripheral
+    UART2_GPIO_Init();
+
+    USART_Init (USART2, 1, 1, baud);	// Enable both Tx and Rx sides.
+
+}
+
+// Very basic function: send a character string to the UART, one byte at a time.
+// Spin wait after each byte until the UART is ready for the next byte.
+// void serial_write (USART_TypeDef *USARTx, const char *buffer, int len) {
+//     // The main flag we use is Tx Empty (TXE). The HW sets it when the
+//     // transmit data register (TDR) is ready for more data. TXE is then
+//     // cleared when we write new data in (by a write to the USART_DR reg).
+//     // When the HW transfers the TDR into the shift register, it sets TXE=1.
+//     for (unsigned int i = 0; i < len; i++) {
+// 	    UART_write_byte (USARTx, buffer[i]);
+//     }
+
+//     // RM0394 page 1203 says that you must wait for ISR.TC=1 before you shut
+//     // off the USART. We never shut off the USART... but we'll wait anyway.
+//     while (!(USARTx->ISR & USART_ISR_TC));
+//     USARTx->ISR &= ~USART_ISR_TC;
+// }
