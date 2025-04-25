@@ -1,4 +1,5 @@
 #include <stm32l432xx.h>
+
 #include "ee14lib.h"
 
 #include <stdio.h>
@@ -64,26 +65,31 @@ int main() {
     //Initalize Serial Communication and SysTick
     host_serial_init();
     SysTick_initialize();
-    char buffer[200];
-    delay_ms(100000);
+    // char buffer[200];
+    
     usart_select_sd();
     delay_ms(100000);
-    usart_send_command(3, 0);
     /* Trig & Echo Config */
     // gpio_config_mode(Echo, INPUT);
     // gpio_config_mode(Trig, OUTPUT);
-
     
-
-    gpio_config_mode(A3, OUTPUT);
-    while (1)
-    {
-        sprintf(buffer, "meow  \n");
-        serial_write(USART2, buffer, strlen(buffer));
-        // delay_ms(100000);
+    // const uint8_t write_buffer[10] = {
+        //     0x7E, 0xFF, 0x06, 0x03,
+        //     0x00, 0x00, 0x01,
+        //     0xFE, 0xF7, 0xEF
+        // };
+        // serial_write(USART2, (char*)write_buffer, 10);
         
-        delay_ms(100000);
-        // usart_send_command(3, 0);
+        // gpio_config_mode(A3, OUTPUT);
+    usart_send_command(3, 0);
+        while (1)
+        {
+            
+            // serial_write(USART2, buffer, strlen(buffer));
+            delay_ms(1000000);
+        
+            delay_ms(100000);
+            // usart_send_command(3, 0);
     }
     
 }
