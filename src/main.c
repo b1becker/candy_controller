@@ -1,83 +1,106 @@
 #include <stm32l432xx.h>
-
 #include "ee14lib.h"
-
 #include <stdio.h>
-#include <stdbool.h>
+#include "dfp.h"
 #include <string.h>
 
-
+/* Distance limit Definition */
+#define Dist_Range 15
 
 /* Pin Definitions: */
-#define Echo A0
-#define Trig A1
+#define Echo1 A1
+#define Trig1 A0
+#define Echo2 D11
+#define Trig2 D12
+
 
 /* Command Definitions */
+#define DEFAULT 0
 #define PLAY_NEXT 1
 #define PLAY_PREV 2
-#define DEFAULT 3
+#define PAUSE 3
+#define PLAY 4
 
 /* Functions Declarations: */
 void SysTick_Handler(void);
 void SysTick_initialize(void);
-void delay_us(int delay);
+void delay_10us(int delay);
 void usart_send_command(uint8_t cmd);
 void usart_select_sd(void);
-
+float get_distance(EE14Lib_Pin trig, EE14Lib_Pin echo);
 
 /* Global Variable Declarations: */
-char buffer[200];
 volatile unsigned int counter;
 
-/* Main */
-int main() {
-    //Initalize Serial Communication and SysTick
-    host_uart_init();
-    host_serial_init();
 
+int main()
+{
+    //Initalize Serial Communication and SysTick
+    host_serial_init();
     SysTick_initialize();
 
+    char buffer[200];
+
+    /* Trig & Echo Config */
+    gpio_config_mode(Echo1, INPUT);
+    gpio_config_mode(Trig1, OUTPUT);
+    gpio_config_mode(Echo2, INPUT);
+    gpio_config_mode(Trig2, OUTPUT);
+
+    host_uart_init();
     usart_select_sd();
-    delay_us(100000);
-    
-    // /* Trig & Echo Config */
-    // gpio_config_mode(Echo, INPUT);
-    // gpio_config_mode(Trig, OUTPUT);
+    volatile bool paused = false;
+    delay_10us(100000);
     
     usart_send_command(DEFAULT);
-    while (1)
-    {
-        // serial_write(USART2, buffer, strlen(buffer));
-        // delay_us(1000000);
-        // usart_send_command(PLAY_NEXT);
-        // delay_us(100000);
-        // usart_send_command(PLAY_NEXT);
 
-        // // Send out 10 microsecond signal
-        // gpio_write(Trig, 1);
-        // delay_us(1);
-        // gpio_write(Trig, 0);
 
-        // while (gpio_read(Echo) == 0);
-        // //Read from echo
-        // volatile int start_time = counter;
-        // while (gpio_read(Echo) != 0);
-        // volatile int end_time = counter;
-
-        // //Time elapsed in 10 us
-        // volatile float pulse_time = (end_time - start_time);
-
-        // //Distance = speed * time adjusted
-        // volatile float distance = (pulse_time * 0.343) / 2;
-        // sprintf(buffer, "Distance: %f\n", distance);
-        // serial_write(USART2, buffer, strlen(buffer));
-        sprintf(buffer, "meow\n");
+    while(1) {
+        volatile float distance = get_distance(Trig1, Echo1);
+        volatile float distance2 = get_distance(Trig2, Echo2);
+        sprintf(buffer, "Distance 1: %f Distance 2: %f\n", distance, distance2);
         serial_write(USART2, buffer, strlen(buffer));
-
         
-        delay_us(10000);
+        if ((distance <= Dist_Range || distance2 <= Dist_Range) && (paused == true))
+        {
+            usart_send_command(PLAY);
+            paused = false;
+            sprintf(buffer, "Unpause: ");
+            serial_write(USART2, buffer, strlen(buffer));
+        }
+        if ((distance > Dist_Range && distance2 > Dist_Range) && (paused == false))
+        {
+            usart_send_command(PAUSE);
+            paused = true;
+            sprintf(buffer, "Pause: ");
+            serial_write(USART2, buffer, strlen(buffer));
+        }
+        
+        delay_10us(10000);
 
     }
+}
+
+float get_distance(EE14Lib_Pin trig, EE14Lib_Pin echo)
+{
+    //Send out 10 microsecond signal
+    gpio_write(trig, 1);
+    delay_10us(1);
+    gpio_write(trig, 0);
+
+    while (gpio_read(echo) == 0);
+    //Read from Echo1
+    volatile int start_time = counter;
+    while (gpio_read(echo) != 0);
+    volatile int end_time = counter;
+
+    //Time elapsed in 10 us
+    volatile float pulse_time = (end_time - start_time);
+
+    //Distance = speed * time adjusted
+    volatile float distance = (pulse_time * 0.343) / 2;
+
+    return distance;
 }
 
 void SysTick_Handler(void)
@@ -105,32 +128,41 @@ void SysTick_initialize(void)
     SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
 }
 
-void delay_us(int ds) {
+void delay_10us(int ds) {
     counter = 0;
     while (counter != ds) {}
 }
 
 void usart_send_command(uint8_t cmd) {
-    // play very first track is default
-    uint8_t write_buffer[10] = {
-        0x7E, 0xFF, 0x06, 0x03,
-        0x00, 0x00, 0x01,
-        0xFE, 0xF7, 0xEF
-    };
-    // play next
-    if(cmd == 1) {
-        write_buffer[3] = cmd;
-        write_buffer[6] = 0x0;
-        write_buffer[8] = 0xfa;
-        serial_write(USART1, (const char*)write_buffer, 10);
-        delay_us(100000);
+    //Play first track
+    if (cmd == DEFAULT)
+    {
+        serial_write(USART1, (const char*)zero_buffer, 10);
     }
-    // play previous
-    else if(cmd == 2) {
-        write_buffer[3] = cmd;
-        write_buffer[8] = 0xf9;
+    //Skip
+    if(cmd == PLAY_NEXT) {
+        // serial_write(USART1, (const char*)write_buffer, 10);
+        serial_write(USART1, (const char*)skip_buffer, 10);
+        delay_10us(100000);
+        serial_write(USART1, (const char*)skip_buffer, 10);
     }
-    serial_write(USART1, (const char*)write_buffer, 10);
+    //Seek
+    else if(cmd == PLAY_PREV) {
+        serial_write(USART1, (const char*)seek_buffer, 10);
+    }
+    //Pause 
+    else if (cmd == PAUSE)
+    {
+        serial_write(USART1, (const char*)pause_buffer, 10);
+        delay_10us(100000);
+        serial_write(USART1, (const char*)pause_buffer, 10);
+    }
+    else if (cmd == PLAY)
+    {
+        serial_write(USART1, (const char*)play_buffer, 10);
+        delay_10us(100000);
+        serial_write(USART1, (const char*)play_buffer, 10);
+    }
 }
 
 void usart_select_sd(void) {
@@ -147,4 +179,3 @@ void usart_select_sd(void) {
     serial_write(USART1, (char*)buf, 10);
 }
 
-// https://howtomechatronics.com/tutorials/arduino/ultrasonic-sensor-hc-sr04/

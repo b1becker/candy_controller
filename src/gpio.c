@@ -135,4 +135,3 @@ bool gpio_read(EE14Lib_Pin pin)
 
     return (port->IDR >> pin_offset) & 1UL;
 }
-

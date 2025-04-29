@@ -15,7 +15,7 @@ static void set_gpio_alt_func (GPIO_TypeDef *gpio,unsigned int pin,unsigned int 
 static void UART1_GPIO_Init(void);
 static void gpio_enable_port (GPIO_TypeDef *gpio);
 
-void host_uart_init(void);
+// void host_uart_init(void);
 
 
 static void USART_Delay(uint32_t us);
@@ -261,20 +261,3 @@ void host_serial_init() {
     USART_Init (USART2, 1, 1, baud);	// Enable both Tx and Rx sides.
 
 }
-
-// Very basic function: send a character string to the UART, one byte at a time.
-// Spin wait after each byte until the UART is ready for the next byte.
-// void serial_write (USART_TypeDef *USARTx, const char *buffer, int len) {
-//     // The main flag we use is Tx Empty (TXE). The HW sets it when the
-//     // transmit data register (TDR) is ready for more data. TXE is then
-//     // cleared when we write new data in (by a write to the USART_DR reg).
-//     // When the HW transfers the TDR into the shift register, it sets TXE=1.
-//     for (unsigned int i = 0; i < len; i++) {
-// 	    UART_write_byte (USARTx, buffer[i]);
-//     }
-
-//     // RM0394 page 1203 says that you must wait for ISR.TC=1 before you shut
-//     // off the USART. We never shut off the USART... but we'll wait anyway.
-//     while (!(USARTx->ISR & USART_ISR_TC));
-//     USARTx->ISR &= ~USART_ISR_TC;
-// }
