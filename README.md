@@ -1,8 +1,6 @@
  # Candy_Controller
 Proximity-based alarm system for entertainment purposes. Created as a final project for EE14 (Embedded Systems) at Tufts University.
 
-![Welcome Screen](frosty_showdown_images/welcome_screen.png)
-
 
 &nbsp;&nbsp;&nbsp;&nbsp; The candy_controller is a halloween decoration you can put candy in, and when unsuspecting children come near to take some, a silly alarm will trigger to scare them
 
